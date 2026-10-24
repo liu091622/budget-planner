@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f2ec">
+  <meta name="description" content="轻量预算规划助手：收支录入、预算分配、乱花钱提醒与省钱思路。数据仅保存在浏览器本地。">
+  <title>预算规划助手</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">¥</div>
+        <div class="brand-copy">
+          <h1>预算规划助手</h1>
+          <p>轻量记账 · 本地保存 · 数据不上传</p>
+        </div>
+      </div>
+
+      <div class="month-picker" aria-label="切换月份">
+        <button type="button" class="icon-btn" id="prevMonth" aria-label="上个月">‹</button>
+        <div class="month-text">
+          <strong id="monthLabel">2026年10月</strong>
+          <span id="monthHint">本月</span>
+        </div>
+        <button type="button" class="icon-btn" id="nextMonth" aria-label="下个月">›</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs" role="tablist" aria-label="功能导航">
+      <button type="button" class="tab is-active" role="tab" aria-selected="true" data-tab="overview">总览</button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="entry">记一笔</button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="budget">预算方案</button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="alerts">乱花钱提醒<span class="tab-badge" id="alertBadge" hidden>0</span></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="tips">省钱思路</button>
+    </nav>
+
+    <main>
+      <!-- 总览 -->
+      <section class="tab-panel is-active" id="tab-overview" role="tabpanel" aria-label="总览">
+        <div class="stat-grid">
+          <article class="stat-card">
+            <p class="stat-label">本月收入</p>
+            <strong class="stat-value" id="statIncome">¥0</strong>
+            <span class="stat-sub" id="statIncomeSub">共 0 笔</span>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">本月支出</p>
+            <strong class="stat-value" id="statExpense">¥0</strong>
+            <span class="stat-sub" id="statExpenseSub">共 0 笔</span>
+          </article>
+          <article class="stat-card is-accent">
+            <p class="stat-label">本月结余</p>
+            <strong class="stat-value" id="statBalance">¥0</strong>
+            <span class="stat-sub" id="statBalanceSub">收入减去支出</span>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">今日可用</p>
+            <strong class="stat-value" id="statDaily">—</strong>
+            <span class="stat-sub" id="statDailySub">生成预算后按剩余额度估算</span>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>预算执行</h2>
+              <button type="button" class="link-btn" data-goto="budget">管理预算</button>
+            </div>
+            <div id="overviewBudget"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>本月提醒</h2>
+              <button type="button" class="link-btn" data-goto="alerts">全部提醒</button>
+            </div>
+            <div id="overviewAlerts"></div>
+          </section>
+        </div>
+
+        <div class="grid-2">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>支出构成</h2>
+              <span class="muted" id="breakdownMeta"></span>
+            </div>
+            <div id="categoryBreakdown"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>最近记录</h2>
+              <button type="button" class="link-btn" data-goto="entry">去记账</button>
+            </div>
+            <div id="recentRecords"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 记一笔 -->
+      <section class="tab-panel" id="tab-entry" role="tabpanel" aria-label="记一笔" hidden>
+        <div class="entry-layout">
+          <form class="panel entry-form" id="entryForm" novalidate>
+            <div class="segmented" id="typeSegmented" role="group" aria-label="收支类型">
+              <button type="button" class="segment is-active" data-type="expense">支出</button>
+              <button type="button" class="segment" data-type="income">收入</button>
+            </div>
+
+            <label class="field-label" for="entryAmount">金额</label>
+            <div class="amount-input">
+              <span aria-hidden="true">¥</span>
+              <input id="entryAmount" name="amount" type="number" inputmode="decimal" min="0.01" max="999999" step="0.01" placeholder="0.00" autocomplete="off">
+            </div>
+
+            <div class="field">
+              <span class="field-label" id="categoryLabel">分类</span>
+              <div class="chips" id="categoryChips" role="group" aria-labelledby="categoryLabel"></div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="entryDate">日期</label>
+                <input id="entryDate" type="date" class="text-input">
+              </div>
+              <div class="field">
+                <label class="field-label" for="entryNote">备注</label>
+                <input id="entryNote" type="text" class="text-input" maxlength="30" placeholder="可选，如：午饭">
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" id="submitEntry">保存记录</button>
+              <button type="button" class="ghost-btn" id="cancelEdit" hidden>取消编辑</button>
+            </div>
+            <p class="form-hint" id="entryHint">点选分类 → 输入金额 → 保存，3 步完成。</p>
+          </form>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>本月流水</h2>
+              <span class="muted" id="recordCount"></span>
+            </div>
+            <div class="record-list" id="recordList"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 预算方案 -->
+      <section class="tab-panel" id="tab-budget" role="tabpanel" aria-label="预算方案" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>生成分配方案</h2>
+            <span class="feature-tag">F2</span>
+          </div>
+          <p class="muted">默认按必要开支 / 想要开支 / 储蓄的比例分配本月已录入收入，生成后可逐项调整。</p>
+
+          <div class="plan-generator">
+            <div class="plan-income">
+              <span>本月已录入收入</span>
+              <strong id="planIncome">¥0</strong>
+              <span class="muted" id="planIncomeHint"></span>
+            </div>
+            <div class="scheme-list" id="schemeList"></div>
+            <button type="button" class="primary-btn" id="generatePlan">生成本月方案</button>
+          </div>
+          <p class="form-hint" id="budgetHint"></p>
+        </section>
+
+        <section class="panel" id="planPanel">
+          <div class="panel-head">
+            <h2>本月分配方案</h2>
+            <span class="muted" id="planMeta"></span>
+          </div>
+          <div id="planBody"></div>
+        </section>
+      </section>
+
+      <!-- 乱花钱提醒 -->
+      <section class="tab-panel" id="tab-alerts" role="tabpanel" aria-label="乱花钱提醒" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>乱花钱提醒</h2>
+            <span class="status-pill" id="alertSummary"></span>
+          </div>
+          <p class="muted">提醒只陈述事实和数字，不评价你的消费选择。点“知道了”后 24 小时内不再出现。</p>
+          <div class="alert-list" id="alertList"></div>
+        </section>
+      </section>
+
+      <!-- 省钱思路 -->
+      <section class="tab-panel" id="tab-tips" role="tabpanel" aria-label="省钱思路" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>省钱思路</h2>
+            <span class="feature-tag" id="tipsSourceTag">基于本月数据</span>
+          </div>
+          <p class="muted">建议会尽量关联本月消费数据，并标注估算口径；仅供参考，最终由你决定。</p>
+          <div class="tip-list" id="tipList"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>每月储蓄目标</h2>
+            <span class="muted">先存后花，剩下的才是可花的钱</span>
+          </div>
+          <div class="goal-row">
+            <label class="goal-input">
+              <span aria-hidden="true">¥</span>
+              <input id="savingGoal" type="number" inputmode="decimal" min="0" max="9999999" step="100" placeholder="0">
+            </label>
+            <button type="button" class="secondary-btn" id="saveGoal">保存目标</button>
+          </div>
+          <div id="goalProgress"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>数据仅保存在当前浏览器的 localStorage 中，不会上传服务器。清除浏览器数据会导致记录丢失。</p>
+      <button type="button" class="link-btn danger" id="clearData">清空所有数据</button>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
