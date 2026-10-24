@@ -218,6 +218,10 @@ h3 {
   box-shadow: 0 6px 14px rgba(47, 111, 94, 0.2);
 }
 
+.tab-badge[hidden] {
+  display: none;
+}
+
 .tab-badge {
   display: inline-grid;
   place-items: center;

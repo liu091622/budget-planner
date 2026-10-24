@@ -722,6 +722,7 @@
       income: round2(income),
       scheme: selectedScheme,
       quotas: quotas,
+      adjusted: false,
       generatedAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -786,6 +787,7 @@
       budget.quotas[adjustKey] = Math.max(round2(quotaOf(budget, adjustKey) + diff), 0);
     }
 
+    budget.adjusted = true;
     budget.updatedAt = Date.now();
     saveState();
     refresh();
@@ -827,7 +829,9 @@
       return;
     }
 
-    $('planMeta').textContent = '按 ' + money(budget.income) + ' 生成 · 更新于 ' + formatTimestamp(budget.updatedAt || budget.generatedAt);
+    $('planMeta').textContent = '按 ' + money(budget.income) + ' 生成' +
+      (budget.adjusted ? ' · 已手动调整' : '') +
+      ' · 更新于 ' + formatTimestamp(budget.updatedAt || budget.generatedAt);
 
     var ms = monthState(selectedMonth);
     var expenses = records.filter(function (record) { return record.type === 'expense'; });
@@ -851,7 +855,9 @@
       var ratio = quota > 0 ? spent / quota : 0;
       var cls = barClass(ratio);
       var dailyText = '';
-      if (ms.remaining > 0 && remaining > 0) {
+      if (remaining < 0) {
+        dailyText = ' · 已超出额度';
+      } else if (ms.remaining > 0 && remaining > 0) {
         dailyText = ' · 日均 ' + money(remaining / ms.remaining);
       }
 
@@ -892,9 +898,12 @@
     var ratio = quota > 0 ? spent / quota : 0;
     var cls = barClass(ratio);
     var color = BUCKETS[bucket] ? BUCKETS[bucket].color : '#2f6f5e';
+    var remaining = round2(quota - spent);
     var detail = isSaving
       ? '不计入支出 · 建议先存后花'
-      : '已用 ' + money(spent) + ' · 剩余 ' + money(Math.max(quota - spent, 0));
+      : '已用 ' + money(spent) + (remaining < 0
+        ? ' · 已超支 ' + money(Math.abs(remaining))
+        : ' · 剩余 ' + money(remaining));
 
     return '<article class="bucket-card">' +
       '<div class="bucket-head"><span>' + name + '</span><strong>' + money(quota) + '</strong></div>' +
@@ -1038,12 +1047,14 @@
     var alerts = visibleAlerts(selectedMonth);
     var badge = $('alertBadge');
     var summary = $('alertSummary');
+    var actionable = alerts.filter(function (alert) { return alert.level !== 'info'; });
 
-    if (alerts.length) {
+    if (actionable.length) {
       badge.hidden = false;
-      badge.textContent = alerts.length > 9 ? '9+' : String(alerts.length);
+      badge.textContent = actionable.length > 9 ? '9+' : String(actionable.length);
     } else {
       badge.hidden = true;
+      badge.textContent = '';
     }
 
     var highCount = alerts.filter(function (alert) { return alert.level === 'high'; }).length;
